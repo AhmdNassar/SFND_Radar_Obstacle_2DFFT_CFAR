@@ -150,8 +150,14 @@ surf(doppler_axis,range_axis,RDM);
 <img src="imgs/DopplerFFT.png" width="700" />
 
 #### 7. CFAR implementation
-* Slide Window through the complete Range Doppler Map
-* Select the number of Training Cells in both the dimensions.
+The 2-D CFAR implements a constant false-alarm rate detector for two dimensional image data. A detection is declared when an image cell value exceeds a threshold. To maintain a constant false alarm-rate, the threshold is set to a multiple of the image noise power. The detector estimates noise power from neighboring cells surrounding the cell-under-test (CUT) using one of three cell averaging methods, or an order statistics method. The cell-averaging methods are cell-averaging (CA), greatest-of cell averaging (GOCA), or smallest-of cell averaging (SOCA). Here we use cell-averaging (CA).
+
+CFAR 2-D requires an estimate of the noise power. Noise power is computed from cells that are assumed not to contain any target signal. These cells are the training cells. Training cells form a band around the cell-under-test (CUT) cell but may be separated from the CUT cell by a guard band. The detection threshold is computed by multiplying the noise power by the threshold factor.
+
+<img src="imgs/cfar2dbands.png" width="700" />
+
+Now the first step we choose CFAR parameters ( Training cells, Guard cells and offset), We start different values and after some experiments with these values, ended up with values shown below
+
 ```
 Tr = 10;
 Td = 8;
@@ -165,15 +171,16 @@ Gd = 4;
 ```
 offset = 1.4;
 ```
-* Create a vector to store noise_level for each iteration on training cells design a loop such that it slides the CUT across range doppler map by giving margins at the edges for Training and Guard Cells.
-* For every iteration sum the signal level within all the training cells. 
-* To sum convert the value from logarithmic to linear using db2pow function. 
-* Average the summed values for all of the training cells used.
-* After averaging convert it back to logarithimic using pow2db.
-* Further add the offset to it to determine the threshold. 
-* Next, compare the signal under CUT with this threshold. 
-* If the CUT level > threshold assign % it a value of `1`, else equate it to `0`.
-* Use `RDM[x,y]` as the matrix from the output of 2D FFT for implementing CFAR
+After choosing our parameters we follow these steps:
+1. Create a vector to store noise_level for each iteration on training cells design a loop such that it slides the CUT across range doppler map by giving margins at the edges for Training and Guard Cells.
+2. For every iteration sum the signal level within all the training cells. 
+3. To sum convert the value from logarithmic to linear using db2pow function. 
+4. Average the summed values for all of the training cells used.
+5. After averaging convert it back to logarithimic using pow2db.
+6. Further add the offset to it to determine the threshold. 
+7. Next, compare the signal under CUT with this threshold. 
+8. If the CUT level > threshold assign % it a value of `1`, else equate it to `0`.
+9. Use `RDM[x,y]` as the matrix from the output of 2D FFT for implementing CFAR
 ```   
 RDM = RDM/max(max(RDM));
 
@@ -205,20 +212,20 @@ for i = Tr+Gr+1:(Nr/2)-(Gr+Tr)
     end
 end
 ```
-* The process above will generate a thresholded block, which is smaller than the Range Doppler Map as the CUT cannot be located at the edges of matrix. 
-* Hence,few cells will not be thresholded. 
-* To keep the map size same set those values to 0. 
+## Steps taken to suppress the non-thresholded cells at the edges
+The process above will generate a thresholded block, which is smaller than the Range Doppler Map as the CUT cannot be located at the edges of matrix. Hence,few cells will not be thresholded. To keep the map size same set those values to 0. By sliding through the RDM matrix, and checking for value in each cell; then if value is different from 0 or 1, then assign it the value 0:
+ 
 ```
 RDM(union(1:(Tr+Gr),end-(Tr+Gr-1):end),:) = 0;  % Rows
 RDM(:,union(1:(Td+Gd),end-(Td+Gd-1):end)) = 0;  % Columns 
 ```
-* Display the CFAR output using the Surf function like we did for Range
-* Doppler Response output.
+Display the CFAR output using the Surf function like we did for Range Doppler Response output.
 ```
 figure('Name','CA-CFAR Filtered RDM')
 surf(doppler_axis,range_axis,RDM);
 colorbar;
 ```
-* Simulation Result
+
+Simulation Result
 
 <img src="imgs/CA-CFAR_Filtered_RDM.png" width="700" />
